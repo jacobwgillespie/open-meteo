@@ -146,29 +146,27 @@ struct DownloadDemCommand: AsyncCommandFix {
                     continue
                 }
 
-                group.addTask {
-                    let px = Dem90.pixel(latitude: lat)
-                    var line = [Float](repeating: 0, count: 360*1200*px)
-                    for lon in -180..<180 {
-                        logger.info("Dem convert lon \(lon) lat \(lat)")
-                        let omFile = "\(Dem90.downloadDirectory)\(lat)_\(lon).om"
-                        if !FileManager.default.fileExists(atPath: omFile) {
-                            continue
-                        }
-
-                        let om = try OmFileReader(file: omFile)
-                        precondition(om.dim0 == 1200)
-                        precondition(om.dim1 == px)
-                        let data = try om.readAll()
-                        for i in 0..<1200 {
-                            line[i * (px * 360) + (lon+180)*px ..< i * (px * 360) + (lon+180)*px + px] = data[i*px ..< (i+1)*px]
-                        }
+                let px = Dem90.pixel(latitude: lat)
+                var line = [Float](repeating: 0, count: 360*1200*px)
+                for lon in -180..<180 {
+                    logger.info("Dem convert lon \(lon) lat \(lat)")
+                    let omFile = "\(Dem90.downloadDirectory)\(lat)_\(lon).om"
+                    if !FileManager.default.fileExists(atPath: omFile) {
+                        continue
                     }
 
-                    //let a2 = Array2DFastSpace(data: line, nLocations: 1200*360*px, nTime: 1)
-                    //try a2.writeNetcdf(filename: "\(Dem90.downloadDirectory)lat_\(lat).nc", nx: 360*px, ny: 1200)
-                    try OmFileWriter(dim0: 1200, dim1: px*360, chunk0: 60, chunk1: 60).write(file: "\(Dem90.omDirectory)lat_\(lat).om", compressionType: .p4nzdec256, scalefactor: 1, all: line)
+                    let om = try OmFileReader(file: omFile)
+                    precondition(om.dim0 == 1200)
+                    precondition(om.dim1 == px)
+                    let data = try om.readAll()
+                    for i in 0..<1200 {
+                        line[i * (px * 360) + (lon+180)*px ..< i * (px * 360) + (lon+180)*px + px] = data[i*px ..< (i+1)*px]
+                    }
                 }
+
+                //let a2 = Array2DFastSpace(data: line, nLocations: 1200*360*px, nTime: 1)
+                //try a2.writeNetcdf(filename: "\(Dem90.downloadDirectory)lat_\(lat).nc", nx: 360*px, ny: 1200)
+                try OmFileWriter(dim0: 1200, dim1: px*360, chunk0: 60, chunk1: 60).write(file: "\(Dem90.omDirectory)lat_\(lat).om", compressionType: .p4nzdec256, scalefactor: 1, all: line)
             }
 
             try await group.waitForAll()
